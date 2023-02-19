@@ -4,7 +4,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import opendatasets as od
 import shutil
-import logging
+
 
 class DataSet():
     '''
@@ -33,12 +33,10 @@ class DataSet():
         if not os.path.exists(self.data_dir):
             os.mkdir(self.data_dir)
         path_dataset = self.url.split('/')[-1]
-
         path_dataset = os.path.join(path_dataset, os.listdir(path_dataset)[0])
         try:
-            shutil.move(path_dataset,self.data_dir)
+            shutil.move(self.url.split('/')[-1],self.data_dir)
             print(f'Dataset has been downloaded to directory {self.data_dir}')
-            os.removedirs(self.url.split('/')[-1])
         except:
             print("Dataset has already been downloaded")
             shutil.rmtree(self.url.split('/')[-1])
