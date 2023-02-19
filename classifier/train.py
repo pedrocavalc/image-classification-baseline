@@ -10,7 +10,9 @@ sys.path.append(utils_path)
 
 
 from image_visualization import show_images , show_batch
-from gpu_management import get_default_device, DeviceDataLoader
+from gpu_management import get_default_device, DeviceDataLoader, to_device
+from models.models import ResNet12
+from fit_cycle import fit_one_cycle
 
 
 def data_augmentation():
@@ -28,6 +30,7 @@ def data_augmentation():
                                    tt.Resize(size=(224,224)),tt.Normalize(*stats,inplace=True)]) # augmentation applied
     val_transforms = tt.Compose([tt.ToTensor(),tt.Normalize(*stats)])
     return train_transforms, val_transforms
+
 
 
 def train(data_dir, augmentation= True, batch_size = 64):
@@ -61,6 +64,10 @@ def train(data_dir, augmentation= True, batch_size = 64):
     device = torch.device(device_flag)
     train_dl = DeviceDataLoader(train_loader,device) # moving the data to target device
     val_dl = DeviceDataLoader(val_loader, device)
+    
+    model = to_device(ResNet12(3,450),device)
+    print(model)
+    
 
 
 if __name__ == "__main__":
