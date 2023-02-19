@@ -69,4 +69,7 @@ class ImageClassificationBase(nn.Module):
         epoch_acc = torch.stack(batch_accs).mean() # combine accuracys
         return {'val_loss':epoch_loss.item(), 'val_acc':epoch_acc.item()}
     
+    def epoch_end(self, epoch, result):
+        print("Epoch [{}], val_loss: {:.4f}, val_acc: {:.4f}".format(epoch, result['val_loss'], result['val_acc']))
+    
     

@@ -10,9 +10,9 @@ sys.path.append(utils_path)
 
 
 from image_visualization import show_images , show_batch
-from gpu_management import get_default_device, DeviceDataLoader, to_device
-from models.models import ResNet12
-from fit_cycle import fit_one_cycle
+from classifier.gpu_management import get_default_device, DeviceDataLoader, to_device
+from classifier.models.models import ResNet12
+from classifier.fit_cycle import fit_one_cycle
 
 
 def data_augmentation():
@@ -28,12 +28,12 @@ def data_augmentation():
     stats = ((0.4914,0.4822,0.4465),(0.2023,0.1994,0.2010)) # stats to normalize image
     train_transforms = tt.Compose([ tt.RandomHorizontalFlip(),tt.ToTensor(), 
                                    tt.Resize(size=(224,224)),tt.Normalize(*stats,inplace=True)]) # augmentation applied
-    val_transforms = tt.Compose([tt.ToTensor(),tt.Normalize(*stats)])
+    val_transforms = tt.Compose([tt.ToTensor(),tt.Resize(size=(224,224)),tt.Normalize(*stats)])
     return train_transforms, val_transforms
 
 
 
-def train(data_dir, augmentation= True, batch_size = 64):
+def train(data_dir, augmentation= True, batch_size = 64, epochs=10, max_lr=0.5):
     """ 
     
     Function to train models in pytorch, the path to the dataset that will be used for training 
@@ -65,8 +65,9 @@ def train(data_dir, augmentation= True, batch_size = 64):
     train_dl = DeviceDataLoader(train_loader,device) # moving the data to target device
     val_dl = DeviceDataLoader(val_loader, device)
     
-    model = to_device(ResNet12(3,450),device)
+    model = to_device(ResNet12(3,500),device)
     print(model)
+    history = fit_one_cycle(epochs=epochs, max_lr=max_lr,model=model,train_loader=train_dl, val_loader=val_dl,)
     
 
 
