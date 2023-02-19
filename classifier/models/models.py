@@ -1,4 +1,4 @@
-from models.standard_model import ImageClassificationBase
+from classifier.models.standard_model import ImageClassificationBase
 import torch.nn as nn
 
 def conv_block(in_channels, out_channels, pool = False):
