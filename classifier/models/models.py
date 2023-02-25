@@ -1,5 +1,10 @@
-from classifier.models.standard_model import ImageClassificationBase
 import torch.nn as nn
+from pytorch_lightning import LightningModule
+import pytorch_lightning as pl
+import torch.nn.functional as F
+import torch
+from torchmetrics.functional import accuracy
+
 
 def conv_block(in_channels, out_channels, pool = False):
     """
@@ -17,8 +22,7 @@ def conv_block(in_channels, out_channels, pool = False):
     if pool: layers.append(nn.MaxPool2d(2))
     return nn.Sequential(*layers) 
 
-
-class ResNet12(ImageClassificationBase):
+class ResNet12(LightningModule):
     """
     Class to implement ResNet12 architecture, extends from ImageClassificationBase class that is reponsible to implemente the basics
     model evaluations methods.
@@ -38,6 +42,7 @@ class ResNet12(ImageClassificationBase):
             num_classes (_int_): Number of classes that will be classified, specifies the size of the output layer
         """
         super().__init__()
+        self.num_classes = num_classes
         # 3 x 224 x 224
         self.conv1= conv_block(in_channels,16) # 16 x 224 x 224
         self.conv2 = conv_block(16,32,pool=True) # 32 x 112 x 112
@@ -75,3 +80,51 @@ class ResNet12(ImageClassificationBase):
         out = self.res3(out) + out
         out = self.classifier(out)
         return out
+    
+    def training_step(self, batch):
+        """
+        Method to get the loss of the training step of the model
+
+        Args:
+            batch (_DataLoader object_): batch of images that will be used in training step
+
+        Returns:
+            _float_: returns the loss of step
+        """
+        images, labels = batch
+        out = self(images)
+        loss = F.cross_entropy(out,labels)
+        self.log("train_loss",loss, on_epoch=True)
+
+        return loss
+    
+    def validation_step(self, batch, batch_idx):
+        """
+        Method to get the validation loss and validation accuracy for the step of the model
+
+        Args:
+            batch (_DataLoader object_): batch of images that will be used in training step
+
+        Returns:
+            _dict_: returns a dict with the validation loss and validation accuracy of the step 
+        """
+        images, labels = batch
+        
+        out = self(images)
+        
+        loss = F.cross_entropy(out, labels)
+        if self.num_classes == 2:
+            acc = accuracy(out, labels,task='binary')
+        else:
+            acc = accuracy(out,labels, task='multiclass',num_classes=self.num_classes)
+        
+        self.log("val_loss",loss, on_epoch=True)
+        self.log("acc", acc, on_epoch=True)
+        
+        return {'val_loss':loss.detach(), 'val_acc': acc}
+    
+    def configure_optimizers(self):
+        return torch.optim.Adam(self.parameters(), lr=0.02)
+    
+    
+

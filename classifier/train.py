@@ -4,15 +4,18 @@ import torch
 from torchvision.datasets import ImageFolder
 from torch.utils.data import DataLoader
 import torchvision.transforms as tt
+import pytorch_lightning as pl
+import mlflow.pytorch
+
 import sys
 utils_path = os.path.join(os.path.dirname(__file__),'../utils')
 sys.path.append(utils_path)
 
 
+
 from image_visualization import show_images , show_batch
-from classifier.gpu_management import get_default_device, DeviceDataLoader, to_device
 from classifier.models.models import ResNet12
-from classifier.fit_cycle import fit_one_cycle
+
 
 
 def data_augmentation():
@@ -33,15 +36,20 @@ def data_augmentation():
 
 
 
-def train(data_dir, augmentation= True, batch_size = 64, epochs=10, max_lr=0.5):
+def train(data_dir,n_classes, augmentation= True, batch_size = 64, epochs=10, max_lr=0.5, n_devices=1, accelerator='cpu'):
     """ 
     
     Function to train models in pytorch, the path to the dataset that will be used for training 
-    is passed and data augmentation will be applied if so required.
+    is passed and data augmentation will be applied if so required. The model and metrics will be automatically logged into mlflow.
     Args:
         data_dir (str): path to dataset that will be use to train
+        n_classes (int): Number of classes that have in the dataset.
         augmentation (bool, optional): Whether or not data augmentation will be performed Defaults to True.
         batch_size (int, optional): Size of a mini batch of images that will be used in training
+        max_lr (int, optional): Maximum learning rate that will be used in training. Defaults to 0.5.
+        n_devices (int, optional): Number of available GPU devices on machine. Defaults to 1
+        accelerator (str,optional): Type of the accelerator that are available, set to "cuda" if do you have a GPU with cuda available
+        to speed up the training. Defaults to "cpu".
     Returns:
         model: pytorch model trained
     """
@@ -59,15 +67,13 @@ def train(data_dir, augmentation= True, batch_size = 64, epochs=10, max_lr=0.5):
     # creating the data loaders   
     train_loader = DataLoader(train_dataset,batch_size=batch_size,shuffle=True, num_workers=2, pin_memory=True)
     val_loader = DataLoader(val_dataset, batch_size= batch_size * 2, num_workers=2, pin_memory= True)
-    show_batch(train_loader) # show the train_loader batch        
-    device_flag = get_default_device() # get the devices availables in machine
-    device = torch.device(device_flag)
-    train_dl = DeviceDataLoader(train_loader,device) # moving the data to target device
-    val_dl = DeviceDataLoader(val_loader, device)
-    
-    model = to_device(ResNet12(3,500),device)
-    print(model)
-    history = fit_one_cycle(epochs=epochs, max_lr=max_lr,model=model,train_loader=train_dl, val_loader=val_dl,)
+    show_batch(train_loader) # show the train_loader batch
+            
+    trainer = pl.Trainer(max_epochs=epochs, devices = n_devices, accelerator = accelerator)
+    mlflow.pytorch.autolog()
+    with mlflow.start_run() as run:
+        model = ResNet12(3,n_classes)
+        trainer.fit(model,train_loader,val_loader)
     
 
 
