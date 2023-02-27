@@ -14,9 +14,9 @@ sys.path.append(utils_path)
 
 
 from image_visualization import show_images , show_batch
-from classifier.models.models import ResNet12
+from classifier.models.models_config import config_models
 
-
+mlflow.set_tracking_uri("http://0.0.0.0:5000")
 
 def data_augmentation():
     """
@@ -70,10 +70,15 @@ def train(data_dir,n_classes, augmentation= True, batch_size = 64, epochs=10, ma
     show_batch(train_loader) # show the train_loader batch
             
     trainer = pl.Trainer(max_epochs=epochs, devices = n_devices, accelerator = accelerator)
+    models = config_models(n_classes)   
+
     mlflow.pytorch.autolog()
-    with mlflow.start_run() as run:
-        model = ResNet12(3,n_classes)
-        trainer.fit(model,train_loader,val_loader)
+    
+    for key in models:
+        model = models[key]
+        with mlflow.start_run() as run:
+            mlflow.set_tag("experiment_name",key)
+            trainer.fit(model,train_loader,val_loader)
     
 
 
