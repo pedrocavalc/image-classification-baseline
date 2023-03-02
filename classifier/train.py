@@ -16,7 +16,6 @@ sys.path.append(utils_path)
 from image_visualization import show_images , show_batch
 from classifier.models.models_config import config_models
 
-mlflow.set_tracking_uri("http://0.0.0.0:5000")
 
 def data_augmentation():
     """
@@ -65,20 +64,25 @@ def train(data_dir,n_classes, augmentation= True, batch_size = 64, epochs=10, ma
         train_dataset = ImageFolder(train_path)
         val_dataset = ImageFolder(val_path)
     # creating the data loaders   
-    train_loader = DataLoader(train_dataset,batch_size=batch_size,shuffle=True, num_workers=2, pin_memory=True)
-    val_loader = DataLoader(val_dataset, batch_size= batch_size * 2, num_workers=2, pin_memory= True)
+    train_loader = DataLoader(train_dataset,batch_size=batch_size,shuffle=True, num_workers=12, pin_memory=True)
+    val_loader = DataLoader(val_dataset, batch_size= batch_size * 2, num_workers=12, pin_memory= True)
     show_batch(train_loader) # show the train_loader batch
             
-    trainer = pl.Trainer(max_epochs=epochs, devices = n_devices, accelerator = accelerator)
-    models = config_models(n_classes)   
+    trainer = pl.Trainer(max_epochs=epochs, devices = n_devices, accelerator = accelerator,auto_lr_find=True)
+    models = config_models(n_classes,max_lr)
+      
 
     mlflow.pytorch.autolog()
-    
     for key in models:
         model = models[key]
+        print(model)
         with mlflow.start_run() as run:
-            mlflow.set_tag("experiment_name",key)
+            mlflow.set_tag("model",key)
+            print('rodei')
+            trainer = pl.Trainer(max_epochs=epochs, devices = n_devices, accelerator = accelerator,auto_lr_find=True)
             trainer.fit(model,train_loader,val_loader)
+            print(trainer.callback_metrics)
+            
     
 
 
