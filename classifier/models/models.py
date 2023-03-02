@@ -125,7 +125,7 @@ class ResNet12(LightningModule):
         return {'val_loss':loss.detach(), 'val_acc': acc}
     
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=self.lr)
+        return torch.optim.Adam(self.parameters(),  lr=(self.lr or self.learning_rate))
     
     
 
@@ -214,4 +214,4 @@ class LeNet(LightningModule):
         return {'val_loss':loss.detach(), 'val_acc': acc}
     
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr = self.lr)
+        return torch.optim.Adam(self.parameters(), lr = (self.lr or self.learning_rate))
