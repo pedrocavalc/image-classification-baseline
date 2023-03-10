@@ -8,7 +8,7 @@ To train the models on your data follow these steps:
 
 1. Extract the dataset into the data folder. 
 **Obs: the data must be in the following folder structure:**
-  
+ ```
 ├── data
 │   ├── train
 │   │   ├── class_name/*.png
@@ -20,7 +20,7 @@ To train the models on your data follow these steps:
 │   │   ├── class_name/*.png
         ...
 └── .gitignore
-
+```
 
 ## Using MLFlow
 To use mlflow go to the project's ROOT directory and use the following command:
