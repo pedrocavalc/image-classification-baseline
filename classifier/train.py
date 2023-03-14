@@ -15,7 +15,7 @@ sys.path.append(utils_path)
 
 from image_visualization import show_images , show_batch
 from classifier.models.models_config import config_models
-
+mlflow.set_tracking_uri("http://127.0.0.1:5000")
 
 def data_augmentation():
     """
@@ -77,13 +77,10 @@ def train(data_dir,n_classes, augmentation= True, batch_size = 64, epochs=10, ma
         model = models[key]
         print(model)
         with mlflow.start_run() as run:
-            mlflow.set_tag("model",key)
-            print('rodei')
             trainer = pl.Trainer(max_epochs=epochs, devices = n_devices, accelerator = accelerator,auto_lr_find=True)
             trainer.fit(model,train_loader,val_loader)
-            print(trainer.callback_metrics)
-            
-    
+            mlflow.set_tags({"model":key})
+
 
 
 if __name__ == "__main__":
