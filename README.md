@@ -21,6 +21,12 @@ To train the models on your data follow these steps:
         ...
 └── .gitignore
 ```
+2. Train
+Use the command:
+```
+python3 main.py --dir "data/100-bird-species" --n_classes 5 --b 64 --aug True --epochs 2 --max_lr 0.0001 --n_devices 1 --accelerator "cuda"
+```
+
 
 ## Using MLFlow
 To use mlflow go to the project's ROOT directory and use the following command:
