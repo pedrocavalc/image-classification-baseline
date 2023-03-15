@@ -68,10 +68,7 @@ def train(data_dir,n_classes, augmentation= True, batch_size = 64, epochs=10, ma
     val_loader = DataLoader(val_dataset, batch_size= batch_size * 2, num_workers=12, pin_memory= True)
     show_batch(train_loader) # show the train_loader batch
             
-    trainer = pl.Trainer(max_epochs=epochs, devices = n_devices, accelerator = accelerator,auto_lr_find=True)
     models = config_models(n_classes,max_lr)
-      
-
     mlflow.pytorch.autolog()
     for key in models:
         model = models[key]
