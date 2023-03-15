@@ -46,3 +46,5 @@ class BaseModel():
         self.log("acc", acc, on_epoch=True)
         
         return {'val_loss':loss.detach(), 'val_acc': acc}
+    
+    
