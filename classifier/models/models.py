@@ -6,11 +6,11 @@ import torch
 from torchmetrics.functional import accuracy
 import os
 import sys
-
+import math
 base_path = os.path.join(os.path.dirname(__file__),'base')
 sys.path.append(base_path)
 
-from base_model import BaseModel
+from base_model import *
 
 
 def conv_block(in_channels, out_channels, pool = False):
@@ -29,15 +29,17 @@ def conv_block(in_channels, out_channels, pool = False):
     if pool: layers.append(nn.MaxPool2d(2))
     return nn.Sequential(*layers) 
 
+
 class ResNet12(BaseModel,LightningModule):
     """
-    Class to implement ResNet12 architecture, extends from ImageClassificationBase class that is reponsible to implemente the basics
+    Class to implement ResNet12 architecture, extends from BaseModel class that is reponsible for implement the basics
     model evaluations methods.
     More details of ResNet12 architecture can be found on:
     https://www.researchgate.net/figure/The-structure-of-ResNet-12_fig1_329954455
 
     Args:
-        ImageClassificationBase (_Class_): Base class with the methods to evaluation the model
+        BaseModel (Class): Class that is reponsible for implement the basics model evaluations methods
+        LightningModule (Class): Class from pytorch-ligthining that have abstractions to handle with metrics and use auto learning rate finder
     """
     def __init__(self,in_channels,num_classes,learning_rate):
         """
@@ -93,8 +95,16 @@ class ResNet12(BaseModel,LightningModule):
         return torch.optim.Adam(self.parameters(),  lr=(self.lr or self.learning_rate))
     
     
-
 class LeNet(BaseModel,LightningModule):
+    """
+    Class to implement LeNet12 architecture, extends from BaseModel class that is reponsible for implement the basics
+    model evaluations methods.
+    More details of LeNet12 architecture can be found on:
+
+    Args:
+        BaseModel (Class): Class that is reponsible for implement the basics model evaluations methods
+        LightningModule (Class): Class from pytorch-ligthining that have abstractions to handle with metrics and use auto learning rate finder
+    """
     def __init__(self, in_channels, n_classes,learning_rate):
         super().__init__()
         self.num_classes = n_classes
@@ -117,7 +127,6 @@ class LeNet(BaseModel,LightningModule):
                     )
 
     
-        
     def forward(self,xb):
         """
         foward method to pass the data network throug architeture 
@@ -138,3 +147,248 @@ class LeNet(BaseModel,LightningModule):
     
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr = (self.lr or self.learning_rate))
+    
+    
+class AlexNet(BaseModel,LightningModule):
+    """
+    Class to implement AlexNet architecture, extends from BaseModel , and LighthingModule.
+    More details of AlexNet architecture can be found on:
+    https://arxiv.org/abs/1803.01164
+    
+
+    Args:
+        BaseModel (Class): Class that is reponsible for implement the basics model evaluations methods
+        LightningModule (Class): Class from pytorch-ligthining that have abstractions to handle with metrics and use auto learning rate finder
+    """
+    def __init__(self, in_channels, n_classes,learning_rate):
+        super().__init__()
+        self.num_classes = n_classes
+        self.lr = learning_rate
+        
+        self.layer1 = nn.Sequential(
+            nn.Conv2d(in_channels, 96, kernel_size=11, stride=4, padding=0),
+            nn.BatchNorm2d(96),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size = 3, stride = 2)
+                                    )
+        
+        self.layer2 = nn.Sequential(nn.Conv2d(96, 256, kernel_size=5, stride=1, padding=2),
+                                    nn.BatchNorm2d(256),
+                                    nn.ReLU(),
+                                    nn.MaxPool2d(kernel_size=3, stride=2)
+                                    )
+        
+        self.layer3 = nn.Sequential(
+            nn.Conv2d(256, 384, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(384),
+            nn.ReLU()
+        )
+        
+        self.layer4 = nn.Sequential(
+            nn.Conv2d(384,384, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(384),
+            nn.ReLU()
+        )
+        
+        self.layer5 = nn.Sequential(
+            nn.Conv2d(384, 256, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(256),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=3, stride=2)
+        )
+        
+        self.fc = nn.Sequential(
+            nn.Dropout(0.5),
+            nn.Linear(9216, 4096),
+            nn.ReLU()
+        )
+        
+        self.fc1 = nn.Sequential(
+            nn.Dropout(0.5),
+            nn.Linear(4096,4096),
+            nn.ReLU()
+        )
+        
+        self.fc2 = nn.Sequential(
+            nn.Linear(4096, n_classes)
+        )
+        
+    def forward(self, xb):
+        out = self.layer1(xb)
+        out = self.layer2(out)
+        out = self.layer3(out)
+        out = self.layer4(out)
+        out = self.layer5(out)
+        out = out.reshape(out.size(0), -1)
+        out = self.fc(out)
+        out = self.fc1(out)
+        out = self.fc2(out)
+        return out
+    
+    def configure_optimizers(self):
+        return torch.optim.Adam(self.parameters(), lr = (self.lr or self.learning_rate),weight_decay=0.005)
+
+
+class DenseNet(BaseModel, LightningModule):
+    def __init__(self, growthRate, depth, reduction, num_classes, bottleneck,lr):
+        super(DenseNet, self).__init__()
+        self.lr = lr
+        self.num_classes = num_classes
+        nDenseBlocks = (depth-4) // 3
+        if bottleneck:
+            nDenseBlocks //= 2
+
+        nChannels = 2*growthRate
+        self.conv1 = nn.Conv2d(3, nChannels, kernel_size=3, padding=1, bias=False)
+        self.dense1 = self._make_dense(nChannels, growthRate, nDenseBlocks, bottleneck)
+        nChannels += nDenseBlocks*growthRate
+        nOutChannels = int(math.floor(nChannels*reduction))
+        self.trans1 = Transition(nChannels, nOutChannels)
+
+        nChannels = nOutChannels
+        self.dense2 = self._make_dense(nChannels, growthRate, nDenseBlocks, bottleneck)
+        nChannels += nDenseBlocks*growthRate
+        nOutChannels = int(math.floor(nChannels*reduction))
+        self.trans2 = Transition(nChannels, nOutChannels)
+
+        nChannels = nOutChannels
+        self.dense3 = self._make_dense(nChannels, growthRate, nDenseBlocks, bottleneck)
+        nChannels += nDenseBlocks*growthRate
+
+        self.bn1 = nn.BatchNorm2d(nChannels)
+        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+        self.fc = nn.Linear(nChannels, num_classes)
+
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
+                m.weight.data.normal_(0, math.sqrt(2. / n))
+            elif isinstance(m, nn.BatchNorm2d):
+                m.weight.data.fill_(1)
+                m.bias.data.zero_()
+            elif isinstance(m, nn.Linear):
+                m.bias.data.zero_()
+
+    def _make_dense(self, nChannels, growthRate, nDenseBlocks, bottleneck):
+        layers = []
+        for i in range(int(nDenseBlocks)):
+            if bottleneck:
+                layers.append(Bottleneck(nChannels, growthRate))
+            else:
+                layers.append(SingleLayer(nChannels, growthRate))
+            nChannels += growthRate
+        return nn.Sequential(*layers)
+
+    def forward(self, x):
+        out = self.conv1(x)
+        out = self.trans1(self.dense1(out))
+        out = self.trans2(self.dense2(out))
+        out = self.dense3(out)
+        out = self.bn1(out)
+        out = F.relu(out)
+        out = self.avgpool(out)
+        out = out.view(out.size(0), -1)
+        out = F.log_softmax(self.fc(out), dim=1)
+        return out
+
+    def configure_optimizers(self):
+        return torch.optim.Adam(self.parameters(), lr = (self.lr or self.learning_rate),weight_decay=0.005)
+    
+
+
+class VGG16(BaseModel, LightningModule):
+    def __init__(self,in_channels, num_classes,lr):
+        super(VGG16, self).__init__()
+        self.lr = lr
+        self.num_classes = num_classes
+        self.layer1 = nn.Sequential(
+            nn.Conv2d(in_channels, 64, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(64),
+            nn.ReLU())
+        self.layer2 = nn.Sequential(
+            nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(64),
+            nn.ReLU(), 
+            nn.MaxPool2d(kernel_size = 2, stride = 2))
+        self.layer3 = nn.Sequential(
+            nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(128),
+            nn.ReLU())
+        self.layer4 = nn.Sequential(
+            nn.Conv2d(128, 128, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(128),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size = 2, stride = 2))
+        self.layer5 = nn.Sequential(
+            nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(256),
+            nn.ReLU())
+        self.layer6 = nn.Sequential(
+            nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(256),
+            nn.ReLU())
+        self.layer7 = nn.Sequential(
+            nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(256),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size = 2, stride = 2))
+        self.layer8 = nn.Sequential(
+            nn.Conv2d(256, 512, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(512),
+            nn.ReLU())
+        self.layer9 = nn.Sequential(
+            nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(512),
+            nn.ReLU())
+        self.layer10 = nn.Sequential(
+            nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(512),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size = 2, stride = 2))
+        self.layer11 = nn.Sequential(
+            nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(512),
+            nn.ReLU())
+        self.layer12 = nn.Sequential(
+            nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(512),
+            nn.ReLU())
+        self.layer13 = nn.Sequential(
+            nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(512),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size = 2, stride = 2))
+        self.fc = nn.Sequential(
+            nn.Dropout(0.5),
+            nn.Linear(7*7*512, 4096),
+            nn.ReLU())
+        self.fc1 = nn.Sequential(
+            nn.Dropout(0.5),
+            nn.Linear(4096, 4096),
+            nn.ReLU())
+        self.fc2= nn.Sequential(
+            nn.Linear(4096, num_classes))
+        
+    def forward(self, x):
+        out = self.layer1(x)
+        out = self.layer2(out)
+        out = self.layer3(out)
+        out = self.layer4(out)
+        out = self.layer5(out)
+        out = self.layer6(out)
+        out = self.layer7(out)
+        out = self.layer8(out)
+        out = self.layer9(out)
+        out = self.layer10(out)
+        out = self.layer11(out)
+        out = self.layer12(out)
+        out = self.layer13(out)
+        out = out.reshape(out.size(0), -1)
+        out = self.fc(out)
+        out = self.fc1(out)
+        out = self.fc2(out)
+        return out
+    
+    
+    def configure_optimizers(self):
+        return torch.optim.Adam(self.parameters(), lr = (self.lr or self.learning_rate),weight_decay=0.005)
