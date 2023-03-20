@@ -1,3 +1,5 @@
 # folders to ignore
 data/
 mlruns/
+lightning_logs
+mlartifacts
